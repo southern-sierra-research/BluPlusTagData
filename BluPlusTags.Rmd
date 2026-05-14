@@ -1,0 +1,132 @@
+---
+title: "BluPlusTags"
+author: "Patrick D. lorch"
+date: "2026-05-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import data
+
+This example uses data downloaded from the blu+ portal
+
+https://blu.ctt-iow.com/#/main
+
+```{r data}
+library(lubridate)
+library(dplyr)
+bluIn = "SSRS_2025-2854_detections.csv"
+
+bluplus_data = read.csv(file = file.path("data",
+                                    bluIn))
+bluplus_data = bluplus_data %>%
+  mutate(time_utc = as_datetime(time_utc, tz = "UTC")) %>%
+  select(c("source", 
+           "tag_id", 
+           "time_utc", 
+           "lat", 
+           "lon", 
+           "conf", 
+           "rssi"))
+
+bp_data_terra = bluplus_data %>%
+  filter(source == "terra")
+
+bp_data_crowd = bluplus_data %>%
+  filter(source == "crowd_sourced")
+
+```
+
+## Including Plots
+
+
+
+```{r blumap}
+library(dplyr)
+library(leaflet)
+library(leaflet.extras2)
+library(sf)
+# library(spsurvey)
+# library(geojsonsf)
+library(plotrix)
+library(htmlwidgets)
+
+bp_data_terra_sf = st_as_sf(bp_data_terra, coords = c("lon", "lat"), crs = 4326)
+bp_data_crowd_sf = st_as_sf(bp_data_crowd, coords = c("lon", "lat"), crs = 4326)
+
+# Center on crowd sourced data since it is widely spread
+center = st_coordinates(st_centroid(summarize(bp_data_crowd_sf)))
+zoom = 12
+
+pal_t <- colorFactor(
+  palette = "magma",
+  domain = bp_data_terra_sf$tag_id,
+  na.color = "#737373")
+pal_c <- colorFactor(
+  palette = "magma",
+  domain = bp_data_crowd_sf$tag_id,
+  na.color = "#737373")
+
+m = leaflet() %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles('Esri.WorldImagery', 
+                   group = "Esri World Imagery") %>%
+  setView(center[1], center[2], zoom) %>%
+  addCircleMarkers(data = bp_data_terra_sf,
+              color= ~pal_t(tag_id),
+              label = ~tag_id,
+              labelOptions = labelOptions(noHide = F, 
+                                          textsize = "7px"),
+              opacity = 0.8,
+              group = "Terra detections") %>%
+  addCircleMarkers(data = bp_data_crowd_sf,
+              color= ~pal_c(tag_id),
+              label = ~tag_id,
+              labelOptions = labelOptions(noHide = F, 
+                                          textsize = "7px"),
+              opacity = 0.8,
+              group = "Crowd-source detections") %>%
+ addScaleBar(position = "bottomleft") %>%
+ addLegend(data = bp_data_terra_sf,
+            position = "bottomleft", 
+            pal = pal_t, 
+            values = ~tag_id,
+            title = "Tag ID",
+            opacity = 1)%>%
+  addLayersControl(
+    baseGroups = c("Esri World Imagery", "OSM (default)"),
+    overlayGroups = c("Terra detections", 
+                      "Crowd-source detections"),
+    position = "bottomright",
+    options = layersControlOptions(collapsed = TRUE)
+    ) %>%
+  # addTimeslider(data = bp_data_terra_sf,
+  #   options = timesliderOptions(
+  #     position = "topright",
+  #     timeAttribute = "time_utc",
+  #     range = TRUE
+  #   )
+  # ) %>%
+  addTimeslider(data = bp_data_crowd_sf,
+                fill = T,
+    options = timesliderOptions(
+      position = "topright",
+      timeAttribute = "time_utc",
+      range = T,
+      # follow = 5,
+      showAllOnStart = F,
+      alwaysShowDate = T
+    )
+  ) %>%
+  hideGroup(c("Terra detections"))
+
+m
+
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
