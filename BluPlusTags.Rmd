@@ -33,12 +33,14 @@ bluplus_data = bluplus_data %>%
            "conf", 
            "rssi"))
 
+# Create seperate files for types of detections
 bp_data_terra = bluplus_data %>%
   filter(source == "terra")
 
 bp_data_crowd = bluplus_data %>%
   filter(source == "crowd_sourced")
 
+# Get deployment file
 bluplus_deployment = read.csv(file = file.path("data",
                                                bluIn_deployment))
 bluplus_deployment = bluplus_deployment %>%
