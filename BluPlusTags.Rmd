@@ -19,6 +19,7 @@ https://blu.ctt-iow.com/#/main
 library(lubridate)
 library(dplyr)
 bluIn = "SSRS_2025-2854_detections.csv"
+bluIn_deployment = "SSRS_2025-2854_deploy_info.csv"
 
 bluplus_data = read.csv(file = file.path("data",
                                     bluIn))
@@ -38,21 +39,35 @@ bp_data_terra = bluplus_data %>%
 bp_data_crowd = bluplus_data %>%
   filter(source == "crowd_sourced")
 
+bluplus_deployment = read.csv(file = file.path("data",
+                                               bluIn_deployment))
+bluplus_deployment = bluplus_deployment %>%
+  mutate(deploy_at_utc = as_datetime(deploy_at_utc, tz = "UTC"))
+bluplus_deployed = bluplus_deployment %>%
+  filter(weight_grams != -1)
+
 ```
 
 ## Including Plots
 
+Currently, slider only works for crowd sourced points.  I will split out Terra derived points once more of this is settled. 
 
+Set up to either show a range of time points or a moving 'follow_time' number of data points.
 
 ```{r blumap}
 library(dplyr)
 library(leaflet)
 library(leaflet.extras2)
 library(sf)
-# library(spsurvey)
-# library(geojsonsf)
 library(plotrix)
+library(htmltools)
 library(htmlwidgets)
+
+# Set range_not_follow to T to have a range slider. If set F,
+#  just one slider handle and it shows past 'follow_time' 
+#  time-points of data.
+range_not_follow =F
+follow_time = 10
 
 bp_data_terra_sf = st_as_sf(bp_data_terra, coords = c("lon", "lat"), crs = 4326)
 bp_data_crowd_sf = st_as_sf(bp_data_crowd, coords = c("lon", "lat"), crs = 4326)
@@ -80,6 +95,8 @@ m = leaflet() %>%
               label = ~tag_id,
               labelOptions = labelOptions(noHide = F, 
                                           textsize = "7px"),
+              popup = ~htmlEscape(time_utc, 
+                                            attribute = F),
               opacity = 0.8,
               group = "Terra detections") %>%
   addCircleMarkers(data = bp_data_crowd_sf,
@@ -87,6 +104,8 @@ m = leaflet() %>%
               label = ~tag_id,
               labelOptions = labelOptions(noHide = F, 
                                           textsize = "7px"),
+              popup = ~htmlEscape(time_utc, 
+                                            attribute = F),
               opacity = 0.8,
               group = "Crowd-source detections") %>%
  addScaleBar(position = "bottomleft") %>%
@@ -115,8 +134,8 @@ m = leaflet() %>%
     options = timesliderOptions(
       position = "topright",
       timeAttribute = "time_utc",
-      range = T,
-      # follow = 5,
+      range = range_not_follow,
+      follow = follow_time,
       showAllOnStart = F,
       alwaysShowDate = T
     )
@@ -124,6 +143,8 @@ m = leaflet() %>%
   hideGroup(c("Terra detections"))
 
 m
+
+saveWidget(m, file="BluPlusTags.html")
 
 ```
 
