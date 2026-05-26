@@ -146,7 +146,8 @@ m = leaflet() %>%
 
 m
 
-saveWidget(m, file="BluPlusTags20260518.html")
+saveWidget(m, file = paste0("BluPlusTags",
+Sys.Date(), ".html"))
 
 ```
 
