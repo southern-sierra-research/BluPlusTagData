@@ -113,7 +113,7 @@ m = leaflet() %>%
  addScaleBar(position = "bottomleft") %>%
  addLegend(data = bp_data_terra_sf,
             position = "bottomleft", 
-            pal = pal_t, 
+            pal = pal_c, 
             values = ~tag_id,
             title = "Tag ID",
             opacity = 1)%>%
@@ -146,7 +146,7 @@ m = leaflet() %>%
 
 m
 
-saveWidget(m, file="BluPlusTags.html")
+saveWidget(m, file="BluPlusTags20260518.html")
 
 ```
 
