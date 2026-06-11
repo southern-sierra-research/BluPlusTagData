@@ -56,6 +56,8 @@ Currently, slider only works for crowd sourced points.  I will split out Terra d
 
 Set up to either show a range of time points or a moving 'follow_time' number of data points.
 
+### Time slider plot
+
 ```{r blumap}
 library(dplyr)
 library(leaflet)
@@ -76,7 +78,7 @@ bp_data_crowd_sf = st_as_sf(bp_data_crowd, coords = c("lon", "lat"), crs = 4326)
 
 # Center on crowd sourced data since it is widely spread
 center = st_coordinates(st_centroid(summarize(bp_data_crowd_sf)))
-zoom = 12
+zoom = 10
 
 pal_t <- colorFactor(
   palette = "magma",
@@ -151,4 +153,9 @@ Sys.Date(), ".html"))
 
 ```
 
+### Rate and confidence plot
+
+```{r timeconf}
+
+```
 
