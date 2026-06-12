@@ -78,7 +78,7 @@ bp_data_crowd_sf = st_as_sf(bp_data_crowd, coords = c("lon", "lat"), crs = 4326)
 
 # Center on crowd sourced data since it is widely spread
 center = st_coordinates(st_centroid(summarize(bp_data_crowd_sf)))
-zoom = 10
+zoom = 8
 
 pal_t <- colorFactor(
   palette = "magma",
@@ -156,6 +156,74 @@ Sys.Date(), ".html"))
 ### Rate and confidence plot
 
 ```{r timeconf}
+unique(bp_data_crowd_sf$tag_id)
+focal_id = "BA8E892D"
+zoom2 = 9
+
+
+bp_data_crowd_sf_focal = bp_data_crowd_sf %>%
+  filter(tag_id == focal_id) %>%
+  arrange(time_utc) %>%
+  mutate(diff_from_next = 
+           c(as.numeric(difftime(time_utc, lead(time_utc), units = "sec"))),
+         time_period = seconds_to_period(-as.numeric(diff_from_next)))
+
+bp_data_crowd_sf_focal_linestring = bp_data_crowd_sf_focal %>%
+  mutate(group = rep(c("A", "B"), 
+                     nrow(bp_data_crowd_sf_focal)/2)) %>%
+  group_by(group) %>%
+  summarize(do_union = F) %>%
+  st_cast("LINESTRING")
+         # lon = st_coordinates(bp_data_crowd_sf_focal)[,1],
+         # lat = st_coordinates(bp_data_crowd_sf_focal)[,2]
+
+
+
+# May be able to delete if sqrt works
+min_conf = min(bp_data_crowd_sf_focal$conf)
+max_conf = max(bp_data_crowd_sf_focal$conf)
+diam_cex = 50
+
+
+center2 = st_coordinates(st_centroid(summarize(bp_data_crowd_sf_focal)))
+
+pal_time <- colorFactor(
+  palette = "RdYlBu",
+  domain = bp_data_crowd_sf_focal$diff_from_next,
+  na.color = "#737373")
+
+m1 = leaflet() %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles('Esri.WorldImagery', 
+                   group = "Esri World Imagery") %>%
+  setView(center2[1], center2[2], zoom2) %>%
+
+  addCircleMarkers(data = bp_data_crowd_sf_focal,
+              color= ~pal_time(diff_from_next),
+              label = ~tag_id,
+              labelOptions = labelOptions(noHide = F, 
+                                          textsize = "7px"),
+              popup = ~htmlEscape(paste(time_utc, 
+                                        conf, 
+                                        time_period,
+                                        sep = "; "), 
+                                            attribute = F),
+              radius = ~ 1/sqrt(conf)*diam_cex,
+              opacity = 0.8,
+              group = "Crowd-source detections") %>%
+  addPolylines(lng = ~lon, lat = ~lat, group = ~group) %>%
+  addLayersControl(
+    baseGroups = c("Esri World Imagery", "OSM (default)"),
+    overlayGroups = c("Crowd-source detections"),
+    position = "bottomright",
+    options = layersControlOptions(collapsed = TRUE)
+    )
+
+m1
+
+saveWidget(m1, file = paste0("BluPlusTags_confidence_residence",
+Sys.Date(), ".html"))
+
 
 ```
 
