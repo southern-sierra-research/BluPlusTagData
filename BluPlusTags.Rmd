@@ -67,6 +67,7 @@ library(plotrix)
 library(htmltools)
 library(htmlwidgets)
 
+map_output = "maps"
 # Set range_not_follow to T to have a range slider. If set F,
 #  just one slider handle and it shows past 'follow_time' 
 #  time-points of data.
@@ -98,7 +99,7 @@ m = leaflet() %>%
               color= ~pal_t(tag_id),
               label = ~tag_id,
               labelOptions = labelOptions(noHide = F, 
-                                          textsize = "7px"),
+                                          textsize = "10px"),
               popup = ~htmlEscape(time_utc, 
                                             attribute = F),
               opacity = 0.8,
@@ -107,7 +108,7 @@ m = leaflet() %>%
               color= ~pal_c(tag_id),
               label = ~tag_id,
               labelOptions = labelOptions(noHide = F, 
-                                          textsize = "7px"),
+                                          textsize = "10px"),
               popup = ~htmlEscape(time_utc, 
                                             attribute = F),
               opacity = 0.8,
@@ -148,48 +149,55 @@ m = leaflet() %>%
 
 m
 
-saveWidget(m, file = paste0("BluPlusTags",
-Sys.Date(), ".html"))
+saveWidget(m, file = file.path(map_output,
+                               paste0("BluPlusTags",
+                                      "_", focal_id,
+                                      "_", Sys.Date(),
+                                      ".html")))
 
 ```
 
 ### Rate and confidence plot
 
 ```{r timeconf}
-unique(bp_data_crowd_sf$tag_id)
-focal_id = "BA8E892D"
-zoom2 = 9
 
+
+unique(bp_data_crowd_sf$tag_id)
+# focal_id = "BA8E892D"
+focal_id = "948743B6"
+zoom2 = 9
+diam_cex = 50
 
 bp_data_crowd_sf_focal = bp_data_crowd_sf %>%
   filter(tag_id == focal_id) %>%
   arrange(time_utc) %>%
   mutate(diff_from_next = 
            c(as.numeric(difftime(time_utc, lead(time_utc), units = "sec"))),
-         time_period = seconds_to_period(-as.numeric(diff_from_next)))
+         time_period = seconds_to_period(-as.numeric(diff_from_next)),
+         time_intervals = cut(-as.numeric(diff_from_next),
+                              breaks = 
+                                c(0,60,
+                                  c(1,2,4,6,8,10,12,24,48)*3600),
+                              labels = c("Seconds",
+                                         "Minutes",
+                                         "1 hr",
+                                         "2 hrs",
+                                         "4 hrs",
+                                         "6 hrs",
+                                         "8 hrs",
+                                         "10 hrs",
+                                         "12 hrs",
+                                         "1 day")))
 
 bp_data_crowd_sf_focal_linestring = bp_data_crowd_sf_focal %>%
-  mutate(group = rep(c("A", "B"), 
-                     nrow(bp_data_crowd_sf_focal)/2)) %>%
-  group_by(group) %>%
   summarize(do_union = F) %>%
   st_cast("LINESTRING")
-         # lon = st_coordinates(bp_data_crowd_sf_focal)[,1],
-         # lat = st_coordinates(bp_data_crowd_sf_focal)[,2]
-
-
-
-# May be able to delete if sqrt works
-min_conf = min(bp_data_crowd_sf_focal$conf)
-max_conf = max(bp_data_crowd_sf_focal$conf)
-diam_cex = 50
-
 
 center2 = st_coordinates(st_centroid(summarize(bp_data_crowd_sf_focal)))
 
 pal_time <- colorFactor(
   palette = "RdYlBu",
-  domain = bp_data_crowd_sf_focal$diff_from_next,
+  domain = bp_data_crowd_sf_focal$time_intervals,
   na.color = "#737373")
 
 m1 = leaflet() %>%
@@ -199,19 +207,28 @@ m1 = leaflet() %>%
   setView(center2[1], center2[2], zoom2) %>%
 
   addCircleMarkers(data = bp_data_crowd_sf_focal,
-              color= ~pal_time(diff_from_next),
-              label = ~tag_id,
+              color= ~pal_time(time_intervals),
+              label = ~time_utc,
               labelOptions = labelOptions(noHide = F, 
-                                          textsize = "7px"),
-              popup = ~htmlEscape(paste(time_utc, 
-                                        conf, 
-                                        time_period,
-                                        sep = "; "), 
+                                          textsize = "10px"),
+              popup = ~htmlEscape(paste0("conf: ", 
+                                        conf, ", ", 
+                                        "time interval: ",
+                                        time_period), 
                                             attribute = F),
               radius = ~ 1/sqrt(conf)*diam_cex,
               opacity = 0.8,
+              clusterOptions = T,
               group = "Crowd-source detections") %>%
-  addPolylines(lng = ~lon, lat = ~lat, group = ~group) %>%
+  addPolylines(data = bp_data_crowd_sf_focal_linestring) %>%
+  # addPolygons(st_linestring(geometry)) %>%
+  addScaleBar(position = "bottomleft") %>%
+  addLegend(data = bp_data_crowd_sf_focal,
+            position = "bottomleft", 
+            pal = pal_time, 
+            values = ~time_intervals,
+            title = "Size ~ conf, color ~ residence time",
+            opacity = 1)%>%
   addLayersControl(
     baseGroups = c("Esri World Imagery", "OSM (default)"),
     overlayGroups = c("Crowd-source detections"),
@@ -221,8 +238,11 @@ m1 = leaflet() %>%
 
 m1
 
-saveWidget(m1, file = paste0("BluPlusTags_confidence_residence",
-Sys.Date(), ".html"))
+saveWidget(m1, file = file.path(map_output,
+                                paste0("BluPlusTags_confidence_residence",
+                                       "_", focal_id,
+                                       "_", Sys.Date(),
+                                       ".html")), selfcontained = T)
 
 
 ```
