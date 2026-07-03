@@ -151,7 +151,6 @@ m
 
 saveWidget(m, file = file.path(map_output,
                                paste0("BluPlusTags",
-                                      "_", focal_id,
                                       "_", Sys.Date(),
                                       ".html")))
 
@@ -164,7 +163,8 @@ saveWidget(m, file = file.path(map_output,
 
 unique(bp_data_crowd_sf$tag_id)
 # focal_id = "BA8E892D"
-focal_id = "948743B6"
+# focal_id = "948743B6"
+focal_id = "F987E2D2"
 zoom2 = 9
 diam_cex = 50
 
@@ -246,4 +246,105 @@ saveWidget(m1, file = file.path(map_output,
 
 
 ```
+
+
+### All on one plot
+
+
+
+```{r timeconfall}
+
+
+unique(bp_data_crowd_sf$tag_id)
+focal_ids = c("BA8E892D", "948743B6", "F987E2D2", "B5287FD0")
+zoom3 = 9
+diam_cex3 = 50
+
+bp_data_crowd_sf_all = bp_data_crowd_sf %>%
+  filter(tag_id %in% focal_ids) %>%
+  group_by(tag_id) %>%
+  arrange(time_utc) %>%
+  mutate(diff_from_next = 
+           c(as.numeric(difftime(time_utc, lead(time_utc), units = "sec"))),
+         time_period = seconds_to_period(-as.numeric(diff_from_next)),
+         time_intervals = cut(-as.numeric(diff_from_next),
+                              breaks = 
+                                c(0,60,
+                                  c(1,2,4,6,8,10,12,24,48)*3600),
+                              labels = c("Seconds",
+                                         "Minutes",
+                                         "1 hr",
+                                         "2 hrs",
+                                         "4 hrs",
+                                         "6 hrs",
+                                         "8 hrs",
+                                         "10 hrs",
+                                         "12 hrs",
+                                         "1 day")))
+
+bp_data_crowd_sf_all_linestring = bp_data_crowd_sf_all %>%
+  # group_by(tag_id) %>%  # Already grouped
+  summarize(do_union = F) %>%
+  st_cast("LINESTRING")
+
+center3 = st_coordinates(st_centroid(summarize(bp_data_crowd_sf_all
+                                               %>%
+                                                 ungroup())))
+
+pal_time = colorFactor(
+  palette = "RdYlBu",
+  domain = bp_data_crowd_sf_all$time_intervals,
+  na.color = "#737373")
+pal_line = colorFactor(
+  palette = "Blues",
+  domain = bp_data_crowd_sf_all_linestring$tag_id,
+  na.color = "#737373")
+
+m2 = leaflet() %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles('Esri.WorldImagery', 
+                   group = "Esri World Imagery") %>%
+  setView(center3[1], center3[2], zoom3) %>%
+
+  addCircleMarkers(data = bp_data_crowd_sf_all,
+              color= ~pal_time(time_intervals),
+              label = ~paste(tag_id, time_utc,sep = " "),
+              labelOptions = labelOptions(noHide = F, 
+                                          textsize = "10px"),
+              popup = ~htmlEscape(paste0("conf: ", 
+                                        conf, ", ", 
+                                        "time interval: ",
+                                        time_period), 
+                                            attribute = F),
+              radius = ~ 1/sqrt(conf)*diam_cex3,
+              opacity = 0.8,
+              clusterOptions = T,
+              group = "Crowd-source detections") %>%
+  addPolylines(data = bp_data_crowd_sf_all_linestring,
+               color = ~pal_line(tag_id)) %>%
+  addScaleBar(position = "bottomleft") %>%
+  addLegend(data = bp_data_crowd_sf_all,
+            position = "bottomleft", 
+            pal = pal_time, 
+            values = ~time_intervals,
+            title = "Size ~ conf, color ~ residence time",
+            opacity = 1)%>%
+  addLayersControl(
+    baseGroups = c("Esri World Imagery", "OSM (default)"),
+    overlayGroups = c("Crowd-source detections"),
+    position = "bottomright",
+    options = layersControlOptions(collapsed = TRUE)
+    )
+
+m2
+
+saveWidget(m2, file = file.path(map_output,
+                                paste0("BluPlusTags_confidence_residence_all",
+                                       "_", Sys.Date(),
+                                       ".html")), selfcontained = T)
+
+
+```
+
+
 
