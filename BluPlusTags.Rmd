@@ -159,12 +159,18 @@ saveWidget(m, file = file.path(map_output,
 ### Rate and confidence plot
 
 ```{r timeconf}
+library(dplyr)
+library(openxlsx)
 
 
 unique(bp_data_crowd_sf$tag_id)
-# focal_id = "BA8E892D"
-# focal_id = "948743B6"
-focal_id = "F987E2D2"
+
+# focal_id = "BA8E892D" # "TRBL Blu 6
+# focal_id = "948743B6" # "TRBL Blu 5
+# focal_id = "F987E2D2" # "TRBL Blu 7
+# focal_id = "B5287FD0" # "TRBL Blu 2"
+# focal_id = "FE7C638C" # "TRBL Blu 3"
+focal_id = "2C77BBA6" # "TRBL Blu 4"
 zoom2 = 9
 diam_cex = 50
 
@@ -187,7 +193,8 @@ bp_data_crowd_sf_focal = bp_data_crowd_sf %>%
                                          "8 hrs",
                                          "10 hrs",
                                          "12 hrs",
-                                         "1 day")))
+                                         "1 day")),
+         tag_row_num = row_number())
 
 bp_data_crowd_sf_focal_linestring = bp_data_crowd_sf_focal %>%
   summarize(do_union = F) %>%
@@ -208,7 +215,9 @@ m1 = leaflet() %>%
 
   addCircleMarkers(data = bp_data_crowd_sf_focal,
               color= ~pal_time(time_intervals),
-              label = ~time_utc,
+              label = ~htmlEscape(paste0(tag_row_num,
+                                         ": ",
+                                         time_utc)),
               labelOptions = labelOptions(noHide = F, 
                                           textsize = "10px"),
               popup = ~htmlEscape(paste0("conf: ", 
@@ -220,6 +229,10 @@ m1 = leaflet() %>%
               opacity = 0.8,
               clusterOptions = T,
               group = "Crowd-source detections") %>%
+  addCircles(data = bp_data_crowd_sf_focal,
+              color= "black", fill = F,
+              radius = 100,
+              group = "100 m circles") %>%
   addPolylines(data = bp_data_crowd_sf_focal_linestring) %>%
   # addPolygons(st_linestring(geometry)) %>%
   addScaleBar(position = "bottomleft") %>%
@@ -227,11 +240,11 @@ m1 = leaflet() %>%
             position = "bottomleft", 
             pal = pal_time, 
             values = ~time_intervals,
-            title = "Size ~ conf, color ~ residence time",
+            title = "Size ~ conf, <br>color ~ residence time",
             opacity = 1)%>%
   addLayersControl(
     baseGroups = c("Esri World Imagery", "OSM (default)"),
-    overlayGroups = c("Crowd-source detections"),
+    overlayGroups = c("Crowd-source detections", "100 m circles"),
     position = "bottomright",
     options = layersControlOptions(collapsed = TRUE)
     )
@@ -244,19 +257,67 @@ saveWidget(m1, file = file.path(map_output,
                                        "_", Sys.Date(),
                                        ".html")), selfcontained = T)
 
+# Add count for cattle opperations in 500m? radius
+# Add 500m circle
+
+# Color: Date by Day/Night, time_intervals by red to blue
+
+bp_data_crowd_sf_focal_habitat = data.frame(bp_data_crowd_sf_focal,
+                                            PondRiver ="no",
+                                            Ditch = "no",
+                                            CattleYard = "no",
+                                            Orchard = "no",
+                                            RowCrop = "no",
+                                            FlyOver = "no")
+bp_data_crowd_sf_focal_habitat = bp_data_crowd_sf_focal_habitat %>%
+  mutate(lon = st_coordinates(geometry)[1],
+         lat = st_coordinates(geometry)[2]) %>%
+  select(!c("geometry"))
+# names(bp_data_crowd_sf_focal_habitat)
+wb <- createWorkbook()
+addWorksheet(wb, "Sheet 1")
+addWorksheet(wb, "Sheet 2")
+
+writeDataTable(wb, sheet = 1, x = bp_data_crowd_sf_focal_habitat)
+writeData(wb, sheet = 2, x = c("no", "yes"))
+
+dataValidation(wb, 1, col = 10:15, 
+               rows = 2:length(bp_data_crowd_sf_focal_habitat[,1]),
+               type = "list", 
+               value = "'Sheet 2'!$A$1:$A$2")
+saveWorkbook(wb, 
+             file.path("maps",
+                       paste0("bp_crowd_focal_habitat",
+                              "_", focal_id,
+                              "_", Sys.Date(),
+                              ".xlsx")),
+             overwrite = TRUE)
+
 
 ```
 
 
 ### All on one plot
 
-
+Not sure when this is more useful than single tag plots.
 
 ```{r timeconfall}
 
 
 unique(bp_data_crowd_sf$tag_id)
-focal_ids = c("BA8E892D", "948743B6", "F987E2D2", "B5287FD0")
+# "84A25E2C", # "TRBL Blu 1" Dead
+focal_ids = c("BA8E892D", # "TRBL Blu 6"
+              "948743B6", # "TRBL Blu 5"
+              "F987E2D2", # "TRBL Blu 7"
+              "B5287FD0", # "TRBL Blu 2"
+              "FE7C638C", # "TRBL Blu 3"
+              "2C77BBA6") # "TRBL Blu 4"
+names(focal_ids) = c("TRBL Blu 6",
+                     "TRBL Blu 5",
+                     "TRBL Blu 7",
+                     "TRBL Blu 2",
+                     "TRBL Blu 3",
+                     "TRBL Blu 4")
 zoom3 = 9
 diam_cex3 = 50
 
@@ -280,7 +341,13 @@ bp_data_crowd_sf_all = bp_data_crowd_sf %>%
                                          "8 hrs",
                                          "10 hrs",
                                          "12 hrs",
-                                         "1 day")))
+                                         "1 day")),
+         tag_row_num = row_number())
+
+bp_data_crowd_sf_all = bp_data_crowd_sf_all %>%
+  ungroup(tag_id) %>%
+  arrange(tag_id, time_utc) %>%
+  mutate(all_row_num = row_number())
 
 bp_data_crowd_sf_all_linestring = bp_data_crowd_sf_all %>%
   # group_by(tag_id) %>%  # Already grouped
@@ -321,13 +388,14 @@ m2 = leaflet() %>%
               clusterOptions = T,
               group = "Crowd-source detections") %>%
   addPolylines(data = bp_data_crowd_sf_all_linestring,
-               color = ~pal_line(tag_id)) %>%
+               color = ~pal_line(tag_id),
+               label = ~tag_id) %>%
   addScaleBar(position = "bottomleft") %>%
   addLegend(data = bp_data_crowd_sf_all,
             position = "bottomleft", 
             pal = pal_time, 
             values = ~time_intervals,
-            title = "Size ~ conf, color ~ residence time",
+            title = "Size ~ conf, <br>color ~ residence time",
             opacity = 1)%>%
   addLayersControl(
     baseGroups = c("Esri World Imagery", "OSM (default)"),
