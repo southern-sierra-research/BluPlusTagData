@@ -10,6 +10,7 @@
 .Ruserdata
 /data
 .html
+.xlsx
 
 # Example code in package build process
 *-Ex.R
