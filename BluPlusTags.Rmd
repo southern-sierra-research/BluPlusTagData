@@ -48,6 +48,13 @@ bluplus_deployment = bluplus_deployment %>%
 bluplus_deployed = bluplus_deployment %>%
   filter(weight_grams != -1)
 
+bp_data_terra_sf = st_as_sf(bp_data_terra, coords = c("lon", "lat"), crs = 4326)
+bp_data_crowd_sf = st_as_sf(bp_data_crowd, coords = c("lon", "lat"), crs = 4326)
+
+# Center on crowd sourced data since it is widely spread
+center = st_coordinates(st_centroid(summarize(bp_data_crowd_sf)))
+zoom = 8
+
 ```
 
 ## Including Plots
@@ -73,13 +80,6 @@ map_output = "maps"
 #  time-points of data.
 range_not_follow =F
 follow_time = 10
-
-bp_data_terra_sf = st_as_sf(bp_data_terra, coords = c("lon", "lat"), crs = 4326)
-bp_data_crowd_sf = st_as_sf(bp_data_crowd, coords = c("lon", "lat"), crs = 4326)
-
-# Center on crowd sourced data since it is widely spread
-center = st_coordinates(st_centroid(summarize(bp_data_crowd_sf)))
-zoom = 8
 
 pal_t <- colorFactor(
   palette = "magma",
@@ -166,13 +166,13 @@ library(openxlsx)
 unique(bp_data_crowd_sf$tag_id)
 
 # focal_id = "BA8E892D" # "TRBL Blu 6
-# focal_id = "948743B6" # "TRBL Blu 5
+focal_id = "948743B6" # "TRBL Blu 5
 # focal_id = "F987E2D2" # "TRBL Blu 7
 # focal_id = "B5287FD0" # "TRBL Blu 2"
 # focal_id = "FE7C638C" # "TRBL Blu 3"
-focal_id = "2C77BBA6" # "TRBL Blu 4"
+# focal_id = "2C77BBA6" # "TRBL Blu 4"
 zoom2 = 9
-diam_cex = 50
+diam_cex = 4 #50
 
 bp_data_crowd_sf_focal = bp_data_crowd_sf %>%
   filter(tag_id == focal_id) %>%
@@ -225,7 +225,8 @@ m1 = leaflet() %>%
                                         "time interval: ",
                                         time_period), 
                                             attribute = F),
-              radius = ~ 1/sqrt(conf)*diam_cex,
+              # radius = ~ 1/sqrt(conf)*diam_cex,
+              radius = ~ sqrt(conf)*diam_cex,
               opacity = 0.8,
               clusterOptions = T,
               group = "Crowd-source detections") %>%
@@ -233,6 +234,10 @@ m1 = leaflet() %>%
               color= "black", fill = F,
               radius = 100,
               group = "100 m circles") %>%
+  addCircles(data = bp_data_crowd_sf_focal,
+              color= "brown", fill = F,
+              radius = 1000,
+              group = "1 km circles") %>%
   addPolylines(data = bp_data_crowd_sf_focal_linestring) %>%
   # addPolygons(st_linestring(geometry)) %>%
   addScaleBar(position = "bottomleft") %>%
@@ -244,7 +249,9 @@ m1 = leaflet() %>%
             opacity = 1)%>%
   addLayersControl(
     baseGroups = c("Esri World Imagery", "OSM (default)"),
-    overlayGroups = c("Crowd-source detections", "100 m circles"),
+    overlayGroups = c("Crowd-source detections", 
+                      "100 m circles",
+                      "1 km circles"),
     position = "bottomright",
     options = layersControlOptions(collapsed = TRUE)
     )
@@ -257,9 +264,6 @@ saveWidget(m1, file = file.path(map_output,
                                        "_", Sys.Date(),
                                        ".html")), selfcontained = T)
 
-# Add count for cattle opperations in 500m? radius
-# Add 500m circle
-
 # Color: Date by Day/Night, time_intervals by red to blue
 
 bp_data_crowd_sf_focal_habitat = data.frame(bp_data_crowd_sf_focal,
@@ -268,7 +272,8 @@ bp_data_crowd_sf_focal_habitat = data.frame(bp_data_crowd_sf_focal,
                                             CattleYard = "no",
                                             Orchard = "no",
                                             RowCrop = "no",
-                                            FlyOver = "no")
+                                            FlyOver = "no",
+                                            CattleYd1km = NA)
 bp_data_crowd_sf_focal_habitat = bp_data_crowd_sf_focal_habitat %>%
   mutate(lon = st_coordinates(geometry)[1],
          lat = st_coordinates(geometry)[2]) %>%
@@ -296,6 +301,19 @@ saveWorkbook(wb,
 
 ```
 
+### Residence time associations 
+
+This did not produce anything interesting.
+
+```{r restime}
+bp_crowd_focal_habitat_948743B6_2026_08_06 = read_csv("maps/bp_crowd_focal_habitat_948743B6_2026-08-06.csv",
+                                                       col_types = cols(time_utc = col_datetime(format = "%Y/%m/%d %H:%M:%S")))
+View(bp_crowd_focal_habitat_948743B6_2026_08_06) 
+
+plot(log(-diff_from_next) ~ CattleYd1km, 
+     data = bp_crowd_focal_habitat_948743B6_2026_08_06)
+```
+
 
 ### All on one plot
 
@@ -319,7 +337,7 @@ names(focal_ids) = c("TRBL Blu 6",
                      "TRBL Blu 3",
                      "TRBL Blu 4")
 zoom3 = 9
-diam_cex3 = 50
+diam_cex3 = 4 #50
 
 bp_data_crowd_sf_all = bp_data_crowd_sf %>%
   filter(tag_id %in% focal_ids) %>%
@@ -383,7 +401,8 @@ m2 = leaflet() %>%
                                         "time interval: ",
                                         time_period), 
                                             attribute = F),
-              radius = ~ 1/sqrt(conf)*diam_cex3,
+              # radius = ~ 1/sqrt(conf)*diam_cex3,
+              radius = ~ sqrt(conf)*diam_cex3,
               opacity = 0.8,
               clusterOptions = T,
               group = "Crowd-source detections") %>%
