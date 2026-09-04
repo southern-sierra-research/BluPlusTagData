@@ -18,11 +18,20 @@ https://blu.ctt-iow.com/#/main
 ```{r data}
 library(lubridate)
 library(dplyr)
+library(xfun)
 bluIn = "SSRS_2025-2854_detections.csv"
 bluIn_deployment = "SSRS_2025-2854_deploy_info.csv"
 
 bluplus_data = read.csv(file = file.path("data",
                                     bluIn))
+bluIn.file.info = file.info(file.path("data", bluIn))
+# Change filename 
+file.rename(file.path("data", bluIn), file.path("data", 
+                                                paste(sans_ext(bluIn),
+                                                      date(bluIn.file.info$ctime),
+                                                      file_ext(bluIn),
+                                                      sep = ".")))
+
 bluplus_data = bluplus_data %>%
   mutate(time_utc = as_datetime(time_utc, tz = "UTC")) %>%
   select(c("source", 
@@ -43,6 +52,15 @@ bp_data_crowd = bluplus_data %>%
 # Get deployment file
 bluplus_deployment = read.csv(file = file.path("data",
                                                bluIn_deployment))
+bluIn_deployment.file.info = file.info(file.path("data", bluIn_deployment))
+# Change filename 
+file.rename(file.path("data", bluIn_deployment), 
+            file.path("data",
+                      paste(sans_ext(bluIn_deployment),
+                            date(bluIn_deployment.file.info$ctime),
+                            file_ext(bluIn_deployment),
+                            sep = ".")))
+
 bluplus_deployment = bluplus_deployment %>%
   mutate(deploy_at_utc = as_datetime(deploy_at_utc, tz = "UTC"))
 bluplus_deployed = bluplus_deployment %>%
@@ -165,14 +183,19 @@ library(openxlsx)
 
 unique(bp_data_crowd_sf$tag_id)
 
-# focal_id = "BA8E892D" # "TRBL Blu 6
-focal_id = "948743B6" # "TRBL Blu 5
-# focal_id = "F987E2D2" # "TRBL Blu 7
-# focal_id = "B5287FD0" # "TRBL Blu 2"
-# focal_id = "FE7C638C" # "TRBL Blu 3"
-# focal_id = "2C77BBA6" # "TRBL Blu 4"
 zoom2 = 9
 diam_cex = 4 #50
+
+# TRBL
+# focal_id = "BA8E892D" # "TRBL Blu 6" Last detected on 2026-08-31
+# focal_id = "948743B6" # "TRBL Blu 5" Last detected on 2026-08-30
+# focal_id = "F987E2D2" # "TRBL Blu 7" Last detected on 2026-07-17 skip
+# focal_id = "B5287FD0" # "TRBL Blu 2" Last detected on 2026-08-10 skip
+focal_id = "FE7C638C" # "TRBL Blu 3" Last detected on 2026-09-02
+# focal_id = "2C77BBA6" # "TRBL Blu 4" Last detected on 2026-09-02
+# YBCU
+# focal_id = "F8E931DE" # "YBCU 1"  Last detected on 2026-09-02
+# focal_id = "63CF8F90" # "YBCU 2"  Last detected on 2026-08-25
 
 bp_data_crowd_sf_focal = bp_data_crowd_sf %>%
   filter(tag_id == focal_id) %>%
@@ -194,7 +217,8 @@ bp_data_crowd_sf_focal = bp_data_crowd_sf %>%
                                          "10 hrs",
                                          "12 hrs",
                                          "1 day")),
-         tag_row_num = row_number())
+         tag_row_num = row_number(),
+         detect_dist = st_distance(geometry, lead(geometry), by_element = T))
 
 bp_data_crowd_sf_focal_linestring = bp_data_crowd_sf_focal %>%
   summarize(do_union = F) %>%
@@ -263,6 +287,7 @@ saveWidget(m1, file = file.path(map_output,
                                        "_", focal_id,
                                        "_", Sys.Date(),
                                        ".html")), selfcontained = T)
+# To plot and look for tag on ground, skip to next chunk
 
 # Color: Date by Day/Night, time_intervals by red to blue
 
@@ -275,8 +300,8 @@ bp_data_crowd_sf_focal_habitat = data.frame(bp_data_crowd_sf_focal,
                                             FlyOver = "no",
                                             CattleYd1km = NA)
 bp_data_crowd_sf_focal_habitat = bp_data_crowd_sf_focal_habitat %>%
-  mutate(lon = st_coordinates(geometry)[1],
-         lat = st_coordinates(geometry)[2]) %>%
+  mutate(lon = st_coordinates(geometry)[, "X"],
+         lat = st_coordinates(geometry)[, "Y"]) %>%
   select(!c("geometry"))
 # names(bp_data_crowd_sf_focal_habitat)
 wb <- createWorkbook()
@@ -300,6 +325,96 @@ saveWorkbook(wb,
 
 
 ```
+
+
+### Select points near a focal point
+
+Select a subset of points within a certain distance of a point.  
+```{r near}
+library(sf)
+library(dplyr)
+# focal_point = c(-118.130447, 35.731580) # as longitude and latitude
+# Loc_name = "House East of Canebrake"
+# focal_dist = 3500 # in meters
+# focal_point = c(-118.24214, 35.69162) # as longitude and latitude
+# Loc_name = "Doyle Ranch Rd., RRB"
+# focal_dist = 1000 # in meters
+focal_point = c(-118.31771, 35.66129) # as longitude and latitude
+Loc_name = "H Ranch E. of Sierra Way"
+focal_dist = 100 # in meters
+
+bp_data_terra_sf_6340 = st_transform(bp_data_terra_sf, crs = 6340)
+bp_data_crowd_sf_6340 = st_transform(bp_data_crowd_sf, crs = 6340)
+find_near = st_sfc(st_point(focal_point), 
+                   crs = 4326)
+find_near_6340 = st_transform(find_near, crs = 6340)
+bp_data_crowd_sf_6340_focal = bp_data_crowd_sf_6340 %>%
+  st_filter(find_near_6340,
+            .predicate = st_is_within_distance,
+            dist = focal_dist)
+bp_data_crowd_sf_6340_focal = bp_data_crowd_sf_6340_focal %>%
+  mutate(detection_hour = 
+           hour(bp_data_crowd_sf_6340_focal$time_utc))
+
+
+```
+
+
+#### Time of day plot for points near a focal point
+
+The idea here is that if it is a foraging site, we should see a time signature 
+on a rose plot that includes the middle of the day.  If they are transiting over
+a site, we might only see morning and evening times.  If we luck into finding 
+them on the nest, we would see more overnight times.
+
+```{r detecttimes}
+library(ggplot2)
+library(lubridate)
+library(dplyr)
+
+m_hour = ggplot(bp_data_crowd_sf_6340_focal, aes(x = detection_hour-7)) +
+  geom_histogram(breaks = seq(0, 24), fill = "steelblue", colour = "grey") +
+  coord_polar(start = 0) +
+  theme_minimal() +
+  scale_x_continuous("", limits = c(0, 24), breaks = seq(0, 24), labels = seq(0, 24)) +
+  labs(y = "Count", 
+       title = paste0("Detections of ",
+       focal_id,
+       " near focal point at \n",
+       Loc_name, "\nby Time of Day (hour Local time)"))
+m_hour
+
+ggsave(file.path("plots", paste0("hours_",
+                                Loc_name,
+                                "_",
+                                focal_id,
+                                "_my_plot.png")),
+       width = 8, height = 6, dpi = 300)
+
+```
+
+
+### Test for tag on ground
+
+Need a way to find which points are later.  If later are in lower right, tag is 
+likely on ground.
+
+```{r ground}
+library(plotly)
+# Save a sf for plotting
+focal_id
+fn = paste("bp_data_crowd_sf_focal", focal_id, sep = "_")
+bp_data = assign(fn, bp_data_crowd_sf_focal)
+plot(bp_data$detect_dist, 
+     log(-(bp_data$diff_from_next) + 0.0001),
+     main = focal_id)
+
+plot_ly(z = bp_data$detect_dist,
+        y = -bp_data$diff_from_next,
+        x = bp_data$time_utc,
+        color = ifelse(bp_data$time_utc > as.Date("2026-07-22"), "red", "green"))
+```
+
 
 ### Residence time associations 
 
