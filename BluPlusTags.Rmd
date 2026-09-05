@@ -176,6 +176,10 @@ saveWidget(m, file = file.path(map_output,
 
 ### Rate and confidence plot
 
+These plots attempt to show detections with confidence score as diameter and 
+time to next point as color (blue short, red long).  It also plotted 500 m and 
+1 km circles for habitat feature annotations.
+
 ```{r timeconf}
 library(dplyr)
 library(openxlsx)
@@ -271,6 +275,7 @@ m1 = leaflet() %>%
             values = ~time_intervals,
             title = "Size ~ conf, <br>color ~ residence time",
             opacity = 1)%>%
+  hideGroup(c("100 m circles","1 km circles")) %>%
   addLayersControl(
     baseGroups = c("Esri World Imagery", "OSM (default)"),
     overlayGroups = c("Crowd-source detections", 
@@ -288,8 +293,14 @@ saveWidget(m1, file = file.path(map_output,
                                        "_", Sys.Date(),
                                        ".html")), selfcontained = T)
 # To plot and look for tag on ground, skip to next chunk
+```
 
-# Color: Date by Day/Night, time_intervals by red to blue
+
+#### Habitat spreadsheet
+
+This should be run any time you want to score habitat features.
+
+```{r habitat}
 
 bp_data_crowd_sf_focal_habitat = data.frame(bp_data_crowd_sf_focal,
                                             PondRiver ="no",
@@ -322,6 +333,178 @@ saveWorkbook(wb,
                               "_", Sys.Date(),
                               ".xlsx")),
              overwrite = TRUE)
+
+
+```
+
+### Time of season
+
+```{r month}
+library(dplyr)
+library(leaflet)
+library(leaflet.extras2)
+library(sf)
+library(plotrix)
+library(htmltools)
+library(htmlwidgets)
+
+zoom4 = 10
+diam_cex = 4 #50
+range_not_follow =T
+follow_time = 10
+
+
+bp_data_crowd_sf_focal_time = bp_data_crowd_sf_focal %>%
+  mutate(time_local = with_tz(time_utc,
+                            tzone = "America/Los_Angeles"),
+         detection_hour = 
+           hour(time_local),
+         detection_time_cat = cut(detection_hour, 
+                                  breaks = c(-0.02, 4, 8, 12, 16, 20, 24), # 
+                                  labels = c("night",
+                                             "dawn",
+                                             "morning",
+                                             "afternoon",
+                                             "evening",
+                                             "night")),
+         detection_month = month(time_local))
+
+center4 = st_coordinates(st_centroid(summarize(bp_data_crowd_sf_focal_time)))
+
+pal_month <- colorNumeric(
+  palette = "RdYlBu",
+  domain = bp_data_crowd_sf_focal_time$detection_month,
+  na.color = "#737373")
+
+m_month = leaflet() %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles('Esri.WorldImagery', group = "Esri World Imagery") %>%
+  setView(center4[1], center4[2], zoom4) %>%
+  
+  addCircleMarkers(
+    data = bp_data_crowd_sf_focal_time,
+    color = ~ pal_month(detection_month),
+    label = ~ htmlEscape(paste0(tag_row_num, ": ", time_local)),
+    labelOptions = labelOptions(noHide = F, textsize = "10px"),
+    popup = ~ htmlEscape(
+      paste0("conf: ", conf, ", ", "time interval: ", time_period),
+      attribute = F
+    ),
+    # radius = ~ 1/sqrt(conf)*diam_cex,
+    # radius = ~ sqrt(conf) * diam_cex,
+    opacity = 0.8,
+    clusterOptions = NULL,
+    group = "Crowd-source detections"
+  ) %>%
+  addScaleBar(position = "bottomleft") %>%
+  addLegend(data = bp_data_crowd_sf_focal_time,
+            position = "bottomleft", 
+            pal = pal_month, 
+            values = ~detection_month,
+            title = "Detections by month <br>(unclick points layer <br>to use time slider)",
+            opacity = 1)%>%
+  addTimeslider(data = bp_data_crowd_sf_focal_time,
+                fill = T,
+    options = timesliderOptions(
+      position = "topright",
+      timeAttribute = "time_local",
+      range = range_not_follow,
+      follow = follow_time,
+      showAllOnStart = F,
+      alwaysShowDate = T
+    ),
+    color = ~ pal_month(detection_month),
+    label = ~ htmlEscape(paste0(tag_row_num, ": ", time_local)),
+    labelOptions = labelOptions(noHide = F, textsize = "10px"),
+    popup = ~ htmlEscape(
+      paste0("conf: ", conf, ", ", "time interval: ", time_period),
+      attribute = F),
+    ) %>%
+  addLayersControl(
+    baseGroups = c("Esri World Imagery", "OSM (default)"),
+    overlayGroups = c("Crowd-source detections"),
+    position = "bottomright",
+    options = layersControlOptions(collapsed = TRUE)
+    )
+
+
+m_month
+
+saveWidget(m_month, file = file.path(map_output,
+                                paste0("BluPlusTags_detection_month",
+                                       "_", focal_id,
+                                       "_", Sys.Date(),
+                                       ".html"))) # , selfcontained = T
+
+
+```
+
+
+### Time of day
+
+```{r hour}
+pal_hour <- colorFactor(
+  palette = "RdYlBu",
+  domain = bp_data_crowd_sf_focal_time$detection_time_cat,
+  na.color = "#737373")
+
+m_hour = leaflet() %>%
+  addTiles(group = "OSM (default)") %>%
+  addProviderTiles('Esri.WorldImagery', group = "Esri World Imagery") %>%
+  setView(center4[1], center4[2], zoom4) %>%
+  
+  addCircleMarkers(
+    data = bp_data_crowd_sf_focal_time,
+    color = ~ pal_hour(detection_time_cat),
+    label = ~ htmlEscape(paste0(tag_row_num, ": ", time_local)),
+    labelOptions = labelOptions(noHide = F, textsize = "10px"),
+    popup = ~ htmlEscape(
+      paste0("conf: ", conf, ", ", "time interval: ", time_period),
+      attribute = F
+    ),
+    opacity = 0.8,
+    clusterOptions = NULL,
+    group = "Crowd-source detections"
+  ) %>%
+  addScaleBar(position = "bottomleft") %>%
+  addLegend(data = bp_data_crowd_sf_focal_time,
+            position = "bottomleft", 
+            pal = pal_hour, 
+            values = ~detection_time_cat,
+            title = "Detections by <br>time of day <br>(unclick points layer <br>to use time slider)",
+            opacity = 1)%>%
+  addTimeslider(data = bp_data_crowd_sf_focal_time,
+                fill = T,
+    options = timesliderOptions(
+      position = "topright",
+      timeAttribute = "time_local",
+      range = range_not_follow,
+      follow = follow_time,
+      showAllOnStart = F,
+      alwaysShowDate = T
+    ),
+    color = ~ pal_hour(detection_time_cat),
+    label = ~ htmlEscape(paste0(tag_row_num, ": ", time_local)),
+    labelOptions = labelOptions(noHide = F, textsize = "10px"),
+    popup = ~ htmlEscape(
+      paste0("conf: ", conf, ", ", "time interval: ", time_period),
+      attribute = F),
+    ) %>%
+  addLayersControl(
+    baseGroups = c("Esri World Imagery", "OSM (default)"),
+    overlayGroups = c("Crowd-source detections"),
+    position = "bottomright",
+    options = layersControlOptions(collapsed = TRUE)
+    )
+
+
+m_hour
+
+saveWidget(m_hour, file = file.path(map_output,
+                                paste0("BluPlusTags_detection_hour",
+                                       "_", focal_id,
+                                       "_", Sys.Date(),
+                                       ".html"))) # , selfcontained = T
 
 
 ```
