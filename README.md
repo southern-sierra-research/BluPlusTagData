@@ -25,15 +25,15 @@ Zoomable maps can be used for several tasks:
 			* The map shows multiple detections near each other as a circle with the count representing the number of nearby detections
 			* Hovering over the circle shows a convex polygon representing the locations of all the points shown in the count
 			* If you click on this circle, the map will zoom in, possibly showing individual detections (separating them if possible so you can hover or click on them)
-		ii.	Individual detections (once you zoom in close enough)
-			1.	Circle size represents CTT’s confidence score, 
-			2.	Circle color represents time to next detection, 
-	b.	The Excel spreadsheet outputs the location, datetime, month, time of day, time to next detection, and other variables designed for a viewer to score habitat features (e.g., distance to next detection, pond or river in 100m, ditch in 100m, cattle yard in 100m, orchard in 100m, row crop in 100m, fly over, cattle yard in 1km).  These columns can be easily changed or expanded in the code.
-3.	Show time of season (month) on map:  To gain a better understanding of how individual tagged birds move around during the season, we generated a map with the following characteristics:
-	a.	Individual detections are color coded by month.
-4.	Show time of day (categories) on map:  To understand how birds move during the day, we produce a map with:
-	a.	Individual detections colored by time period (night, dawn, morning, afternoon, evening)
-	b.	You can use the time-slider to limit to certain months or periods by date
+		* Individual detections (once you zoom in close enough)
+			* Circle size represents CTT’s confidence score, 
+			* Circle color represents time to next detection, 
+	* The Excel spreadsheet outputs the location, datetime, month, time of day, time to next detection, and other variables designed for a viewer to score habitat features (e.g., distance to next detection, pond or river in 100m, ditch in 100m, cattle yard in 100m, orchard in 100m, row crop in 100m, fly over, cattle yard in 1km).  These columns can be easily changed or expanded in the code.
+* Show time of season (month) on map:  To gain a better understanding of how individual tagged birds move around during the season, we generated a map with the following characteristics:
+	* Individual detections are color coded by month.
+* Show time of day (categories) on map:  To understand how birds move during the day, we produce a map with:
+	* Individual detections colored by time period (night, dawn, morning, afternoon, evening)
+	* You can use the time-slider to limit to certain months or periods by date
 
 ### Time of day plot
 To get a sense for what focal points in space with large numbers of detections are being used for, we plot a stacked histogram of hour local time.  This shows what times of day detections are being recorded.  It also shows whether these detections have a greater or less than 15 minutes time to next detection.  The idea is that locations with large numbers of short duration visits midday may indicate a foraging site.  On the other hand, if more detections have longer time to next detection, it could indicate either proximity to roosting or nesting sites, or long distance to next detection hot spot.
