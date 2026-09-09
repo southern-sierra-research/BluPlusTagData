@@ -20,6 +20,7 @@ In order to explore habitat use and movement at a number of spatial and temporal
 Zoomable maps can be used for several tasks:
 
 1.	Characterize habitat features near where birds were detected:  While GIS approaches using landcover data can give us some information, we have designed interactive maps to allow managers to drill down for each detection by zooming in and recording habitat feature like, for example, livestock operations within a 100m or 1km radius of the detection.  This should make it possible to examine the effects of management practices and to identify important habitat patches.  So, for example, we currently plot two circles (100m and 1km) around each detection to allow scoring each detection for features in those ranges like cattle operations, wetland areas, etc.  Lines are drawn to allow a viewer to move from one detection to the next to understand movements.  We also generate an Excel sheet for recording habitat features.  Time to next detection is output for use in deciding whether detections represent overflights or stop-overs.
+
   a.	This map shows:
     i.	Zoomed out detections
       1.	The map shows multiple detections near each other as a circle with the count representing the number of nearby detections
@@ -29,9 +30,9 @@ Zoomable maps can be used for several tasks:
       1.	Circle size represents CTT’s confidence score, 
       2.	Circle color represents time to next detection, 
   b.	The Excel spreadsheet outputs the location, datetime, month, time of day, time to next detection, and other variables designed for a viewer to score habitat features (e.g., distance to next detection, pond or river in 100m, ditch in 100m, cattle yard in 100m, orchard in 100m, row crop in 100m, fly over, cattle yard in 1km).  These columns can be easily changed or expanded in the code.
-2.	Show time of season (month) on map:  To gain a better understanding of how individual tagged birds move around during the season, we generated a map with the following characteristics:
+3.	Show time of season (month) on map:  To gain a better understanding of how individual tagged birds move around during the season, we generated a map with the following characteristics:
   a.	Individual detections are color coded by month.
-3.	Show time of day (categories) on map:  To understand how birds move during the day, we produce a map with:
+4.	Show time of day (categories) on map:  To understand how birds move during the day, we produce a map with:
   a.	Individual detections colored by time period (night, dawn, morning, afternoon, evening)
   b.	You can use the time-slider to limit to certain months or periods by date
 
