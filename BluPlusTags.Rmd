@@ -19,6 +19,7 @@ https://blu.ctt-iow.com/#/main
 library(lubridate)
 library(dplyr)
 library(xfun)
+library(sf)
 bluIn = "SSRS_2025-2854_detections.csv"
 bluIn_deployment = "SSRS_2025-2854_deploy_info.csv"
 
@@ -184,7 +185,6 @@ time to next point as color (blue short, red long).  It also plotted 500 m and
 library(dplyr)
 library(openxlsx)
 
-
 unique(bp_data_crowd_sf$tag_id)
 
 zoom2 = 9
@@ -245,7 +245,8 @@ m1 = leaflet() %>%
               color= ~pal_time(time_intervals),
               label = ~htmlEscape(paste0(tag_row_num,
                                          ": ",
-                                         time_utc)),
+                                         time_utc,
+                                         " UTC")),
               labelOptions = labelOptions(noHide = F, 
                                           textsize = "10px"),
               popup = ~htmlEscape(paste0("conf: ", 
@@ -384,7 +385,7 @@ m_month = leaflet() %>%
   addCircleMarkers(
     data = bp_data_crowd_sf_focal_time,
     color = ~ pal_month(detection_month),
-    label = ~ htmlEscape(paste0(tag_row_num, ": ", time_local)),
+    label = ~ htmlEscape(paste0(tag_row_num, ": ", time_local, " Local")),
     labelOptions = labelOptions(noHide = F, textsize = "10px"),
     popup = ~ htmlEscape(
       paste0("conf: ", conf, ", ", "time interval: ", time_period),
@@ -456,7 +457,7 @@ m_hour = leaflet() %>%
   addCircleMarkers(
     data = bp_data_crowd_sf_focal_time,
     color = ~ pal_hour(detection_time_cat),
-    label = ~ htmlEscape(paste0(tag_row_num, ": ", time_local)),
+    label = ~ htmlEscape(paste0(tag_row_num, ": ", time_local, " Local")),
     labelOptions = labelOptions(noHide = F, textsize = "10px"),
     popup = ~ htmlEscape(
       paste0("conf: ", conf, ", ", "time interval: ", time_period),
@@ -512,10 +513,13 @@ saveWidget(m_hour, file = file.path(map_output,
 
 ### Select points near a focal point
 
-Select a subset of points within a certain distance of a point.  
+Select a subset of points within a certain distance of a point.
+
 ```{r near}
 library(sf)
 library(dplyr)
+
+
 # focal_point = c(-118.130447, 35.731580) # as longitude and latitude
 # Loc_name = "House East of Canebrake"
 # focal_dist = 3500 # in meters
@@ -532,13 +536,21 @@ find_near = st_sfc(st_point(focal_point),
                    crs = 4326)
 find_near_6340 = st_transform(find_near, crs = 6340)
 bp_data_crowd_sf_6340_focal = bp_data_crowd_sf_6340 %>%
+# uncomment if you want to limit to or a few ids
+  # filter(tag_id == focal_id) %>%
   st_filter(find_near_6340,
             .predicate = st_is_within_distance,
             dist = focal_dist)
 bp_data_crowd_sf_6340_focal = bp_data_crowd_sf_6340_focal %>%
   mutate(detection_hour = 
-           hour(bp_data_crowd_sf_6340_focal$time_utc))
-
+           hour(bp_data_crowd_sf_6340_focal$time_utc),
+         diff_from_next = 
+           c(as.numeric(difftime(time_utc, lead(time_utc), units = "sec"))),
+         time_period = seconds_to_period(-as.numeric(diff_from_next)),
+         time_intervals2 = if_else(-as.numeric(diff_from_next) <= 15*60,
+                                   "15 mins. or less", "more than 15 mins.")
+           )
+focal_ids = unique(bp_data_crowd_sf_6340_focal$tag_id)
 
 ```
 
@@ -555,22 +567,28 @@ library(ggplot2)
 library(lubridate)
 library(dplyr)
 
-m_hour = ggplot(bp_data_crowd_sf_6340_focal, aes(x = detection_hour-7)) +
-  geom_histogram(breaks = seq(0, 24), fill = "steelblue", colour = "grey") +
+utc_offset = -7
+
+m_hourrose = ggplot(bp_data_crowd_sf_6340_focal, aes(x = detection_hour + utc_offset,
+                                                     fill = time_intervals2)) +
+  geom_histogram(breaks = seq(0, 24), 
+                 # fill = c("steelblue", "grey"), 
+                 color = "grey",
+                 position = "stack") +
   coord_polar(start = 0) +
   theme_minimal() +
   scale_x_continuous("", limits = c(0, 24), breaks = seq(0, 24), labels = seq(0, 24)) +
   labs(y = "Count", 
        title = paste0("Detections of ",
-       focal_id,
        " near focal point at \n",
-       Loc_name, "\nby Time of Day (hour Local time)"))
-m_hour
+       Loc_name, "\nby Time of Day (hour Local time)\n",
+       paste(focal_ids, collapse = ", ")))
+m_hourrose
 
 ggsave(file.path("plots", paste0("hours_",
                                 Loc_name,
                                 "_",
-                                focal_id,
+                                paste(focal_ids, collapse = "_"),
                                 "_my_plot.png")),
        width = 8, height = 6, dpi = 300)
 
@@ -606,10 +624,14 @@ This did not produce anything interesting.
 ```{r restime}
 bp_crowd_focal_habitat_948743B6_2026_08_06 = read_csv("maps/bp_crowd_focal_habitat_948743B6_2026-08-06.csv",
                                                        col_types = cols(time_utc = col_datetime(format = "%Y/%m/%d %H:%M:%S")))
-View(bp_crowd_focal_habitat_948743B6_2026_08_06) 
+bp_livestock_sf = bp_crowd_focal_habitat_948743B6_2026_08_06 %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = F) %>%
+  mutate(detect_dist = st_distance(geometry, lead(geometry), by_element = T))
+View(bp_livestock_sf) 
+# detect_dist was meant to be entered as a co-variate to control for travel time when looking for associations between habitat variables and time to next detection. Not used yet
 
 plot(log(-diff_from_next) ~ CattleYd1km, 
-     data = bp_crowd_focal_habitat_948743B6_2026_08_06)
+     data = bp_livestock_sf)
 ```
 
 
