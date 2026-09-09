@@ -19,12 +19,12 @@ In order to explore habitat use and movement at a number of spatial and temporal
 
 Zoomable maps can be used for several tasks:
 
-1.	Characterize habitat features near where birds were detected:  While GIS approaches using landcover data can give us some information, we have designed interactive maps to allow managers to drill down for each detection by zooming in and recording habitat feature like, for example, livestock operations within a 100m or 1km radius of the detection.  This should make it possible to examine the effects of management practices and to identify important habitat patches.  So, for example, we currently plot two circles (100m and 1km) around each detection to allow scoring each detection for features in those ranges like cattle operations, wetland areas, etc.  Lines are drawn to allow a viewer to move from one detection to the next to understand movements.  We also generate an Excel sheet for recording habitat features.  Time to next detection is output for use in deciding whether detections represent overflights or stop-overs.
-	a.	This map shows:
-		i.	Zoomed out detections
-			1.	The map shows multiple detections near each other as a circle with the count representing the number of nearby detections
-			2.	Hovering over the circle shows a convex polygon representing the locations of all the points shown in the count
-			3.	If you click on this circle, the map will zoom in, possibly showing individual detections (separating them if possible so you can hover or click on them)
+* Characterize habitat features near where birds were detected:  While GIS approaches using landcover data can give us some information, we have designed interactive maps to allow managers to drill down for each detection by zooming in and recording habitat feature like, for example, livestock operations within a 100m or 1km radius of the detection.  This should make it possible to examine the effects of management practices and to identify important habitat patches.  So, for example, we currently plot two circles (100m and 1km) around each detection to allow scoring each detection for features in those ranges like cattle operations, wetland areas, etc.  Lines are drawn to allow a viewer to move from one detection to the next to understand movements.  We also generate an Excel sheet for recording habitat features.  Time to next detection is output for use in deciding whether detections represent overflights or stop-overs.
+	* This map shows:
+		* Zoomed out detections
+			* The map shows multiple detections near each other as a circle with the count representing the number of nearby detections
+			* Hovering over the circle shows a convex polygon representing the locations of all the points shown in the count
+			* If you click on this circle, the map will zoom in, possibly showing individual detections (separating them if possible so you can hover or click on them)
 		ii.	Individual detections (once you zoom in close enough)
 			1.	Circle size represents CTT’s confidence score, 
 			2.	Circle color represents time to next detection, 
