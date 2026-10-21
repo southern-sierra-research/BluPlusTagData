@@ -184,10 +184,13 @@ time to next point as color (blue short, red long).  It also plotted 500 m and
 ```{r timeconf}
 library(dplyr)
 library(openxlsx)
+library(leaflet)
+# library(leaflet.extras2)
+library(htmltools)
 
 unique(bp_data_crowd_sf$tag_id)
 
-zoom2 = 9
+zoom2 = 4
 diam_cex = 4 #50
 
 # TRBL
@@ -195,11 +198,11 @@ diam_cex = 4 #50
 # focal_id = "948743B6" # "TRBL Blu 5" Last detected on 2026-08-30
 # focal_id = "F987E2D2" # "TRBL Blu 7" Last detected on 2026-07-17 skip
 # focal_id = "B5287FD0" # "TRBL Blu 2" Last detected on 2026-08-10 skip
-focal_id = "FE7C638C" # "TRBL Blu 3" Last detected on 2026-09-02
+# focal_id = "FE7C638C" # "TRBL Blu 3" Last detected on 2026-09-02
 # focal_id = "2C77BBA6" # "TRBL Blu 4" Last detected on 2026-09-02
 # YBCU
 # focal_id = "F8E931DE" # "YBCU 1"  Last detected on 2026-09-02
-# focal_id = "63CF8F90" # "YBCU 2"  Last detected on 2026-08-25
+focal_id = "63CF8F90" # "YBCU 2"  Last detected on 2026-08-25
 
 bp_data_crowd_sf_focal = bp_data_crowd_sf %>%
   filter(tag_id == focal_id) %>%
@@ -349,7 +352,7 @@ library(plotrix)
 library(htmltools)
 library(htmlwidgets)
 
-zoom4 = 10
+zoom4 = 4
 diam_cex = 4 #50
 range_not_follow =T
 follow_time = 10
@@ -513,7 +516,7 @@ saveWidget(m_hour, file = file.path(map_output,
 
 ### Select points near a focal point
 
-Select a subset of points within a certain distance of a point.
+Select a subset of points within a certain distance of a point. Currently, we are using this to look at any tag detected near a focal point.
 
 ```{r near}
 library(sf)
@@ -558,7 +561,7 @@ focal_ids = unique(bp_data_crowd_sf_6340_focal$tag_id)
 #### Time of day plot for points near a focal point
 
 The idea here is that if it is a foraging site, we should see a time signature 
-on a rose plot that includes the middle of the day.  If they are transiting over
+on a circolar plot of hours that includes the middle of the day.  If they are transiting over
 a site, we might only see morning and evening times.  If we luck into finding 
 them on the nest, we would see more overnight times.
 
@@ -580,9 +583,9 @@ m_hourrose = ggplot(bp_data_crowd_sf_6340_focal, aes(x = detection_hour + utc_of
   scale_x_continuous("", limits = c(0, 24), breaks = seq(0, 24), labels = seq(0, 24)) +
   labs(y = "Count", 
        title = paste0("Detections of ",
-       " near focal point at \n",
-       Loc_name, "\nby Time of Day (hour Local time)\n",
-       paste(focal_ids, collapse = ", ")))
+                      paste(focal_ids, collapse = ", "),
+       "\nnear focal point at \n",
+       Loc_name, "\nby Time of Day (hour Local time)\n"))
 m_hourrose
 
 ggsave(file.path("plots", paste0("hours_",
