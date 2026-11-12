@@ -187,6 +187,8 @@ library(openxlsx)
 library(leaflet)
 # library(leaflet.extras2)
 library(htmltools)
+library(htmlwidgets)
+
 
 unique(bp_data_crowd_sf$tag_id)
 
@@ -202,7 +204,7 @@ diam_cex = 4 #50
 # focal_id = "2C77BBA6" # "TRBL Blu 4" Last detected on 2026-09-02
 # YBCU
 # focal_id = "F8E931DE" # "YBCU 1"  Last detected on 2026-09-02
-focal_id = "63CF8F90" # "YBCU 2"  Last detected on 2026-08-25
+focal_id = "63CF8F90" # "YBCU 2"  Last detected on 2026-11-04
 
 bp_data_crowd_sf_focal = bp_data_crowd_sf %>%
   filter(tag_id == focal_id) %>%
@@ -242,6 +244,8 @@ m1 = leaflet() %>%
   addTiles(group = "OSM (default)") %>%
   addProviderTiles('Esri.WorldImagery', 
                    group = "Esri World Imagery") %>%
+  addProviderTiles('Esri.WorldStreetMap',
+                   group = "Esri World Streetmap") %>%
   setView(center2[1], center2[2], zoom2) %>%
 
   addCircleMarkers(data = bp_data_crowd_sf_focal,
@@ -281,7 +285,7 @@ m1 = leaflet() %>%
             opacity = 1)%>%
   hideGroup(c("100 m circles","1 km circles")) %>%
   addLayersControl(
-    baseGroups = c("Esri World Imagery", "OSM (default)"),
+    baseGroups = c("Esri World Imagery", "Esri World Streetmap", "OSM (default)"),
     overlayGroups = c("Crowd-source detections", 
                       "100 m circles",
                       "1 km circles"),
@@ -297,6 +301,63 @@ saveWidget(m1, file = file.path(map_output,
                                        "_", Sys.Date(),
                                        ".html")), selfcontained = T)
 # To plot and look for tag on ground, skip to next chunk
+```
+
+### Animation of residence map
+
+
+
+Adding view_follow caused R to crash.
+
+```{r animate}
+library(dplyr)
+library(ggplot2)
+# install.packages("ggmap")
+library(ggmap)
+# install.packages("gganimate")
+library(gganimate)
+# install.packages("gifski")
+library(gifski)
+library(sf)
+
+zoom2a = 4
+# diam_cex2a = 4 #50
+tobemapped = bp_data_crowd_sf_focal
+center2a = st_coordinates(st_centroid(summarize(tobemapped)))
+
+api_key = Sys.getenv("ggmap_API_KEY")
+ggmap::register_google(api_key)
+map = get_map(location = center2a, zoom = zoom2a,
+              # maptype = "terrain-background",
+              # source = "google"
+              )
+map_with_data = ggmap(map) +
+  geom_sf(data = tobemapped, inherit.aes = FALSE,
+             aes(size = conf,
+                 color = time_intervals)) +
+  coord_sf(default_crs = sf::st_crs(4326))
+
+
+# map_with_data
+
+map_with_animation_row = map_with_data +
+  shadow_mark() +
+  transition_time(tobemapped$tag_row_num) +
+  ggtitle('Row: {frame_time}',
+          subtitle = 'Frame {frame} of {nframes}')
+map_with_animation = map_with_data +
+  shadow_mark() +
+  transition_time(tobemapped$time_utc) +
+  ggtitle('Yellow-billed Cuckoo Chaco fall migration. \n Datetime: {frame_time}',
+          subtitle = 'Frame {frame} of {nframes}')
+num_rows = max(tobemapped$tag_row_num) - 
+  min(tobemapped$tag_row_num) + 1
+animate(map_with_animation, nframes = num_rows, fps = 2,
+        end_pause = 10)
+anim_save("map_with_animation_Chaco2026_11_11.gif")
+
+
+
 ```
 
 
